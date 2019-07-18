@@ -1,0 +1,5 @@
+# include all Config.in of Apps
+
+menu "App Demo"
+
+endmenu

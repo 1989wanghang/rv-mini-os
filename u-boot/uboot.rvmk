@@ -1,0 +1,60 @@
+# Copyright 2018 Rockchip Electronics Co., Ltd. All Rights Reserved.
+# author: hertz.wang, wangh@rock-chips.com
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+RV_TARGET_UBOOT := y
+
+PATTERN_LOADER_BIN_FILE = $(call qstrip,$(RV_BOARD_TYPE))_loader_v*.bin
+
+UBOOT_SOURCE_IMG = $(UBOOT_PKGDIR)/uboot.img
+UBOOT_TARGET_IMG = $(IMAGE_DIR)/uboot.img
+TRUST_SOURCE_IMG = $(UBOOT_PKGDIR)/trust.img
+TRUST_TARGET_IMG = $(IMAGE_DIR)/trust.img
+
+UBOOT_TARGET_FILES = $(UBOOT_SOURCE_IMG) \
+					 $(TRUST_SOURCE_IMG)
+
+UBOOT_ADD_TOOLCHAIN_DEPENDENCY = NO
+
+UBOOT_KCONFIG_DEFCONFIG = $(call qstrip,$(UBOOT_DEFCONFIG))
+UBOOT_KCONFIG_FILE = $(UBOOT_PKGDIR)/configs/$(UBOOT_KCONFIG_DEFCONFIG)
+
+ifeq ($(BUILDING),y)
+ifeq ($(UBOOT_KCONFIG_DEFCONFIG),)
+$(error No UBOOT configuration specified, check your project config)
+endif
+endif
+
+UBOOT_CONFIGURE_DEP_CONFIGS = \
+	UBOOT_DEFCONFIG
+
+define UBOOT_BUILD_CMDS
+	$(Q)cd $($(PKG)_PKGDIR);\
+	./make.sh $(subst _defconfig,,$(UBOOT_KCONFIG_DEFCONFIG))
+endef
+
+define UBOOT_INSTALL_TARGET_CMDS
+	$(Q)$(if $(RV_BOARD_VERSION),,\
+		$(error 'board version is null, forget make %_defconfig?'))
+	@$(call MESSAGE, "Create Loader")
+	$(Q)cp -af `stat -c "%n" $(TOP_DIR)/$(UBOOT_PKGDIR)/$(PATTERN_LOADER_BIN_FILE)`\
+		$(IMAGE_DIR)/MiniLoaderAll.bin
+	@$(call MESSAGE,"Package u-boot img{$(UBOOT_KCONFIG_DEFCONFIG)}")
+	$(Q)install -C $(TRUST_SOURCE_IMG) $(IMAGE_DIR)/
+	$(Q)install -C $(UBOOT_SOURCE_IMG) $(IMAGE_DIR)/
+	@stat -c "%s %n" $(TRUST_TARGET_IMG)
+	@stat -c "%s %n" $(UBOOT_TARGET_IMG)
+	@echo " ...done)"
+endef
+
+define UBOOT_MAKECLEAN_CMDS
+	$(Q)cd $($(PKG)_PKGDIR) && $(MAKE) distclean && rm -f *_loader_*.bin
+endef
+
+$(eval $(kconfig-package))
+
+.PHONY: pack-loader
+pack-loader:
+	$(UBOOT_INSTALL_TARGET_CMDS)

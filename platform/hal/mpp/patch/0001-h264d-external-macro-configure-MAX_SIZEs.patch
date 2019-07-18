@@ -1,0 +1,131 @@
+From f8c3fb48c4ed6af5fe0df2b2ab0b49729aa513f4 Mon Sep 17 00:00:00 2001
+From: "hertz.wang" <wangh@rock-chips.com>
+Date: Mon, 28 May 2018 19:24:17 +0800
+Subject: [PATCH 1/2] h264d external macro configure MAX_SIZEs
+
+configure:
+    H264D_BITSTREAM_MAX_SIZE
+    H264D_HEAD_BUF_MAX_SIZE
+    H264D_NALU_BUF_MAX_SIZE
+    H264D_SODB_BUF_MAX_SIZE
+    H264D_ERROR_INFO_MAX_SIZE
+
+Change-Id: I34b40efe0a6f2f79e0481634c4320ed2f5561574
+Signed-off-by: hertz.wang <wangh@rock-chips.com>
+---
+ mpp/CMakeLists.txt                      | 20 ++++++++++++++++++++
+ mpp/codec/dec/h264/h264d_api.c          |  3 +++
+ mpp/codec/dec/h264/h264d_global.h       | 23 +++++++++++++++++++++++
+ mpp/hal/rkdec/h264d/hal_h264d_rkv_reg.c |  5 +++++
+ 4 files changed, 51 insertions(+)
+
+diff --git a/mpp/CMakeLists.txt b/mpp/CMakeLists.txt
+index 960126f..194400d 100644
+--- a/mpp/CMakeLists.txt
++++ b/mpp/CMakeLists.txt
+@@ -1,4 +1,24 @@
+ # vim: syntax=cmake
++
++if (DEFINED H264D_INPUT_NO_BFRAME)
++  add_definitions(-DH264D_INPUT_NO_BFRAME=${H264D_INPUT_NO_BFRAME})
++endif()
++if (DEFINED H264D_BITSTREAM_MAX_SIZE)
++  add_definitions(-DH264D_BITSTREAM_MAX_SIZE=${H264D_BITSTREAM_MAX_SIZE})
++endif()
++if (DEFINED H264D_HEAD_BUF_MAX_SIZE)
++  add_definitions(-DH264D_HEAD_BUF_MAX_SIZE=${H264D_HEAD_BUF_MAX_SIZE})
++endif()
++if (DEFINED H264D_NALU_BUF_MAX_SIZE)
++  add_definitions(-DH264D_NALU_BUF_MAX_SIZE=${H264D_NALU_BUF_MAX_SIZE})
++endif()
++if (DEFINED H264D_SODB_BUF_MAX_SIZE)
++  add_definitions(-DH264D_SODB_BUF_MAX_SIZE=${H264D_SODB_BUF_MAX_SIZE})
++endif()
++if (DEFINED H264D_ERROR_INFO_MAX_SIZE)
++  add_definitions(-DH264D_ERROR_INFO_MAX_SIZE=${H264D_ERROR_INFO_MAX_SIZE})
++endif()
++
+ # ----------------------------------------------------------------------------
+ # setup mpp codec config first
+ # ----------------------------------------------------------------------------
+diff --git a/mpp/codec/dec/h264/h264d_api.c b/mpp/codec/dec/h264/h264d_api.c
+index cfce4e1..d418f6c 100644
+--- a/mpp/codec/dec/h264/h264d_api.c
++++ b/mpp/codec/dec/h264/h264d_api.c
+@@ -266,6 +266,9 @@ static MPP_RET init_dec_ctx(H264_DecCtx_t *p_Dec)
+     p_Dec->nalu_ret = NALU_NULL;
+     p_Dec->have_slice_data = 0;
+     p_Dec->last_frame_slot_idx = -1;
++#if H264D_INPUT_NO_BFRAME
++    p_Dec->immediate_out = 1;
++#endif
+     memset(&p_Dec->errctx, 0, sizeof(H264dErrCtx_t));
+ __RETURN:
+     return ret = MPP_OK;
+diff --git a/mpp/codec/dec/h264/h264d_global.h b/mpp/codec/dec/h264/h264d_global.h
+index e959c99..f654809 100644
+--- a/mpp/codec/dec/h264/h264d_global.h
++++ b/mpp/codec/dec/h264/h264d_global.h
+@@ -132,11 +132,28 @@ if ((val) < 0) {\
+ 
+ #define MAX_MARK_SIZE             35   //!< for malloc buffer mark, can be changed
+ 
++#ifndef H264D_HEAD_BUF_MAX_SIZE
+ #define HEAD_BUF_MAX_SIZE         (1*1024*1024)
++#else
++#define HEAD_BUF_MAX_SIZE         (H264D_HEAD_BUF_MAX_SIZE)
++#endif
++
+ #define HEAD_BUF_ADD_SIZE         (512)
++
++#ifndef H264D_NALU_BUF_MAX_SIZE
+ #define NALU_BUF_MAX_SIZE         (2*1024*1024)
++#else
++#define NALU_BUF_MAX_SIZE         (H264D_NALU_BUF_MAX_SIZE)
++#endif
++
+ #define NALU_BUF_ADD_SIZE         (512)
++
++#ifndef H264D_SODB_BUF_MAX_SIZE
+ #define SODB_BUF_MAX_SIZE         (2*1024*1024)
++#else
++#define SODB_BUF_MAX_SIZE         (H264D_SODB_BUF_MAX_SIZE)
++#endif
++
+ #define SODB_BUF_ADD_SIZE         (512)
+ 
+ //!< PPS parameters
+@@ -874,7 +891,13 @@ typedef struct h264_old_slice_par_t {
+ //!< DXVA context
+ #define MAX_SLICE_NUM              (20)
+ #define ADD_SLICE_SIZE             (5)
++
++#ifndef H264D_BITSTREAM_MAX_SIZE
+ #define BITSTREAM_MAX_SIZE         (2*1024*1024)
++#else
++#define BITSTREAM_MAX_SIZE         H264D_BITSTREAM_MAX_SIZE
++#endif
++
+ #define BITSTREAM_ADD_SIZE         (512)
+ #define SYNTAX_BUF_SIZE            (5)
+ typedef struct h264d_dxva_ctx_t {
+diff --git a/mpp/hal/rkdec/h264d/hal_h264d_rkv_reg.c b/mpp/hal/rkdec/h264d/hal_h264d_rkv_reg.c
+index e06a3e9..3918a25 100644
+--- a/mpp/hal/rkdec/h264d/hal_h264d_rkv_reg.c
++++ b/mpp/hal/rkdec/h264d/hal_h264d_rkv_reg.c
+@@ -39,7 +39,12 @@
+ #define RKV_SPSPPS_SIZE           (256*32 + 128)      /* bytes */
+ #define RKV_RPS_SIZE              (128 + 128)         /* bytes */
+ #define RKV_SCALING_LIST_SIZE     (6*16+2*64 + 128)   /* bytes */
++
++#ifndef H264D_ERROR_INFO_SIZE
+ #define RKV_ERROR_INFO_SIZE       (256*144*4)         /* bytes */
++#else
++#define RKV_ERROR_INFO_SIZE       (H264D_ERROR_INFO_SIZE)
++#endif
+ 
+ typedef struct h264d_rkv_buf_t {
+     RK_U32 valid;
+-- 
+2.7.4
+

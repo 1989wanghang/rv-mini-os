@@ -1,0 +1,9 @@
+menu "u-boot"
+
+config UBOOT_DEFCONFIG
+	string "u-boot defconfig"
+	default "$(RV_BOARD_TYPE)_defconfig"
+	help
+	  u-boot defconfig for compile
+
+endmenu

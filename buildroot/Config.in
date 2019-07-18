@@ -1,0 +1,14 @@
+menu Buildroot
+
+config BUILDROOT_CONFIG_FILE
+	string "Location to save buildroot config"
+	default "$(BOARD_DIR)/$(RV_BOARD_TYPE)/buildroot_config/configs/defconfig"
+	help
+		 When running 'make buildroot-savedefconfig', the defconfig file will be
+		 saved in this location.
+		 Make value start with '$(BOARD_DIR)/$(RV_BOARD_TYPE)/buildroot_config/configs/'.
+
+config BUILDROOT_ENABLE_LIBDRM
+	bool "enable libdrm"
+
+endmenu

@@ -1,0 +1,135 @@
+# Copyright 2018 Rockchip Electronics Co., Ltd. All Rights Reserved.
+# author: hertz.wang, wangh@rock-chips.com
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+# kernel must be enabled
+RV_TARGET_KERNEL := y
+
+KERNEL_DEPENDENCIES =
+
+KERNEL_SOURCE_IMG = $(if $(RV_BOARD_110X),$(KERNEL_PKGDIR)/kernel.img,$(KERNEL_PKGDIR)/boot.img)
+KERNEL_TARGET_IMG = $(IMAGE_DIR)/$(notdir $(KERNEL_SOURCE_IMG))
+
+KERNEL_TARGET_FILES = $(KERNEL_SOURCE_IMG)
+
+KERNEL_ADD_TOOLCHAIN_DEPENDENCY = NO
+
+KERNEL_DTS_DIR =
+
+STRIPED_RV_BOARD_VERSION = $(call qstrip,$(RV_BOARD_VERSION))
+STRIPED_KERNEL_DEFCONFIG = $(call qstrip,$(KERNEL_DEFCONFIG))
+STRIPED_KERNEL_DTS_NAME = $(call qstrip,$(KERNEL_DTS_NAME))
+KERNEL_INITRAMFS = $(call qstrip,$(RV_TARGET_KERNEL_INITRAMFS))
+
+ifeq ($(BUILDING),y)
+ifeq ($(STRIPED_KERNEL_DEFCONFIG),)
+$(error No kernel configuration specified, check your project config)
+endif
+ifeq ($(STRIPED_RV_BOARD_VERSION),)
+$(error board version is null, check your project config)
+endif
+ifeq ($(ARCH),arm)
+KERNEL_DTS_DIR = $(KERNEL_PKGDIR)/arch/arm/boot/dts
+else ifeq ($(ARCH),aarch64)
+KERNEL_DTS_DIR = $(KERNEL_PKGDIR)/arch/arm64/boot/dts/rockchip
+else
+$(info unsupport arch <$(ARCH)>)
+endif
+endif
+
+KERNEL_BUILD_CONFIG = $(KERNEL_PKGDIR)/.config
+ifneq ($(KERNEL_INITRAMFS),)
+
+define KERNEL_SET_INITRAMFS
+$(call KCONFIG_ENABLE_OPT,CONFIG_BLK_DEV_INITRD,$(KERNEL_BUILD_CONFIG))
+$(call KCONFIG_SET_OPT,CONFIG_INITRAMFS_SOURCE,$(KERNEL_INITRAMFS),$(KERNEL_BUILD_CONFIG))
+$(call KCONFIG_ENABLE_OPT,CONFIG_INITRAMFS_COMPRESSION_GZIP,$(KERNEL_BUILD_CONFIG))
+endef
+
+else
+
+define KERNEL_SET_INITRAMFS
+$(call KCONFIG_DISABLE_OPT,CONFIG_BLK_DEV_INITRD,$(KERNEL_BUILD_CONFIG))
+$(call KCONFIG_DISABLE_OPT,CONFIG_INITRAMFS_SOURCE,$(KERNEL_BUILD_CONFIG))
+$(call KCONFIG_DISABLE_OPT,CONFIG_INITRAMFS_COMPRESSION_GZIP,$(KERNEL_BUILD_CONFIG))
+endef
+
+endif
+
+define KERNEL_KCONFIG_FIXUP_CMDS
+	$(KERNEL_SET_INITRAMFS)
+endef
+
+KERNEL_MEMORY_SIZE = $(subst 0x,,$(call qstrip,$(RV_TARGET_KERNEL_MEMORY_SIZE)))
+KERNEL_ION_SIZE = $(subst 0x,,$(call qstrip,$(RV_TARGET_KERNEL_ION_SIZE)))
+
+KERNEL_CONFIG_CLKS = RV_TARGET_KERNEL_ACLK_RKVENC_PRE \
+	RV_TARGET_KERNEL_CLK_VENC_CORE \
+	RV_TARGET_KERNEL_ACLK_RKVDEC_PRE \
+	RV_TARGET_KERNEL_ACLK_VPU_PRE \
+	RV_TARGET_KERNEL_CLK_RGA
+
+parse_clk_name = $(subst -,_,$(call LOWERCASE,$(subst RV_TARGET_KERNEL_,,$(1))))
+
+KERNEL_CONFIGURE_DEP_CONFIGS = \
+	KERNEL_DEFCONFIG \
+	KERNEL_DTS_NAME \
+	RV_TARGET_KERNEL_MEMORY_SIZE RV_TARGET_KERNEL_ION_SIZE \
+	$(KERNEL_CONFIG_CLKS)
+
+# TODO : Get recursive dep variables
+#        $(foreach dep,$(%_CONFIGURE_DEP_CONFIGS),\
+$(if $(subst recursive,$(flavor $dep)),,$(r $(value $dep))))
+
+define rewrite_dts
+	$(Q)$(if $(KERNEL_MEMORY_SIZE),(sed -i '/device_type = "memory";/{ n; s/\<0x[0-9]\{1,\}/$(join 0x,$(KERNEL_MEMORY_SIZE))/2g; }' $(1)))
+	$(Q)$(if $(KERNEL_ION_SIZE),(sed -i '/rockchip,ion_heap = <4>;/{ n; s/\<0x[0-9]\{1,\}/$(join 0x,$(KERNEL_ION_SIZE))/2g; }' $(1)))
+endef
+
+define rewrite_dtsi
+	$(Q)$(foreach clk_macro,$(KERNEL_CONFIG_CLKS),$(if $(call qstrip,$($(clk_macro))),\
+	(sed -i 's/$(call parse_clk_name,$(clk_macro)) [0-9]\{6,\}/$(call parse_clk_name,$(clk_macro)) $(call qstrip,$($(clk_macro)))/' $(1));))
+endef
+
+KERNEL_KCONFIG_FILE = $(KERNEL_PKGDIR)/arch/$(KERNEL_ARCH)/configs/$(STRIPED_KERNEL_DEFCONFIG)
+KERNEL_KCONFIG_DEFCONFIG = $(STRIPED_KERNEL_DEFCONFIG)
+
+KERNEL_KCONFIG_OPTS = $(if $(KERNEL_ARCH),ARCH=$(KERNEL_ARCH))
+
+define KERNEL_CONFIGURE_CMDS
+	@$(call MESSAGE, "defconfig: $(KERNEL_KCONFIG_DEFCONFIG) & dts: $(STRIPED_KERNEL_DTS_NAME).dts")
+	$(call rewrite_dts,$(KERNEL_DTS_DIR)/$(STRIPED_KERNEL_DTS_NAME).dts)
+	$(call rewrite_dtsi,$(KERNEL_DTS_DIR)/$(call qstrip,$(RV_BOARD_TYPE)).dtsi)
+endef
+
+define KERNEL_BUILD_CMDS
+	$(Q)cd $($(PKG)_PKGDIR) && $(MAKE) $($(PKG)_KCONFIG_OPTS) $(STRIPED_KERNEL_DTS_NAME).img
+endef
+
+define KERNEL_MAKECLEAN_CMDS
+	$(Q)cd $($(PKG)_PKGDIR) && $(MAKE) $($(PKG)_KCONFIG_OPTS) distclean
+endef
+
+define KERNEL_INSTALL_TARGET_CMDS
+	$(Q)$(if $(RV_BOARD_VERSION),,\
+		$(error 'board version is null, forget make %_defconfig?'))
+	@$(call MESSAGE,"Package kernel img {$(KERNEL_KCONFIG_DEFCONFIG) & $(STRIPED_KERNEL_DTS_NAME)}")
+	
+	$(Q)$(if $(RV_BOARD_110X),\
+	echo "rewrite kernel.img with dtb...";\
+	cat $(KERNEL_PKGDIR)/arch/arm/boot/zImage $(KERNEL_DTS_DIR)/$(call qstrip,$(RV_BOARD_VERSION)).dtb > $(KERNEL_PKGDIR)/zImage-dtb;\
+	$(TOP_DIR)/vendor_tool/pack/kernelimage --pack --kernel $(KERNEL_PKGDIR)/zImage-dtb $(KERNEL_PKGDIR)/kernel.img 0x62000000 > /dev/null;\
+	rm -f $(KERNEL_PKGDIR)/zImage-dtb)
+	$(Q)cp -af $(KERNEL_SOURCE_IMG) $(IMAGE_DIR)/
+#	$(Q)install -C $(KERNEL_SOURCE_IMG) $(IMAGE_DIR)/
+	$(Q)stat -c "%s %n" $(KERNEL_TARGET_IMG)
+	@echo " ...done)"
+endef
+
+$(eval $(kconfig-package))
+
+.PHONY: pack-kernel
+pack-kernel:
+	$(KERNEL_INSTALL_TARGET_CMDS)

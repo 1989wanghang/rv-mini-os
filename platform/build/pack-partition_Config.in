@@ -1,0 +1,206 @@
+menu "Pack firmware options"
+
+config RV_PACK_IN_ONE_IMAGE
+	bool "images merge in one image"
+	default y if RV_BOARD_110X
+
+choice
+	prompt "pack partition manner"
+	default RV_PACK_WITH_PARAMETER_TXT
+	default RV_PACK_WITH_SETTING_INI if RV_110X
+	help
+	  Set the pack partition manner, parameter.txt or partition_setting.ini
+
+config RV_PACK_WITH_PARAMETER_TXT
+	bool "parameter.txt"
+	help
+	  pack by parameter.txt
+
+config RV_PACK_WITH_SETTING_INI
+	bool "setting.ini"
+	help
+	  pack by setting.ini
+
+endchoice
+
+config RV_SET_DEFAULT_PARTITION_STRUCTURE
+	bool "use default generate partition structure"
+	default y
+	help
+	  parameter.txt: uboot,trust,misc,boot,recovery,backup,rootfs,oem,userdata
+	  setting.ini: ddr/loader,kernel,rootfs
+
+if !RV_SET_DEFAULT_PARTITION_STRUCTURE
+
+config RV_SELFDEFINE_PARTITION_FILE
+	string "self define partition structure file path"
+	default "$(TOP_DIR)/oem/parameter.txt" if RV_PACK_WITH_PARAMETER_TXT
+	default "$(TOP_DIR)/oem/setting.ini" if RV_PACK_WITH_SETTING_INI
+
+endif
+
+if RV_SET_DEFAULT_PARTITION_STRUCTURE
+
+if RV_PACK_WITH_PARAMETER_TXT
+
+config RV_PARTITION_START_OFFSET
+	string "start offset of partition"
+
+config RV_UBOOT_PARTITION_SIZE
+	string "size of uboot partition"
+	default "0"
+	help
+	  bytes (decimalism);
+	  if 0, the size will set to the size of source img or folder
+
+config RV_TRUST_PARTITION_SIZE
+	string "size of trust partition"
+	default "0"
+	help
+	  bytes (decimalism);
+	  if 0, the size will set to the size of source img or folder
+
+config RV_MISC_PARTITION_SIZE
+	string "size of misc partition"
+	default "0"
+	help
+	  bytes (decimalism);
+	  if 0, the size will set to the size of source img or folder
+
+config RV_BOOT_PARTITION_SIZE
+	string "size of boot(kernel) partition"
+	default "0"
+	help
+	  bytes (decimalism);
+	  if 0, the size will set to the size of source img or folder
+
+config RV_SET_RECOVERY_PARTITION
+	bool "Enable Recovery partition"
+	default y
+
+if RV_SET_RECOVERY_PARTITION
+config RV_RECOVERY_PARTITION_SIZE
+	string "size of recovery partition"
+	default "0"
+	help
+	  bytes (decimalism);
+	  if 0, the size will set to the size of source img or folder
+endif
+
+config RV_SET_BACKUP_PARTITION
+	bool "Enable Backup partition"
+	default y
+
+if RV_SET_BACKUP_PARTITION
+config RV_BACKUP_PARTITION_SIZE
+	string "size of backup partition"
+	default "0"
+	help
+	  bytes (decimalism);
+	  if 0, the size will set to the size of source img or folder
+endif
+
+config RV_ROOTFS_PARTITION_SIZE
+	string "size of rootfs partition"
+	default "0"
+	help
+	  bytes (decimalism);
+	  if 0, the size will set to the size of source img or folder
+
+config RV_OEM_PARTITION_SIZE
+	string "size of oem partition"
+	default "0"
+	help
+	  bytes (decimalism);
+	  if 0, the size will set to the size of source img or folder
+
+config RV_USERDATA_PARTITION_SIZE
+	string "size of userdata partition"
+	default "-"
+	help
+	  bytes (decimalism);
+	  if 0, the size will set to the size of source img or folder;
+	  if -, keep '-'.
+
+# bu hua li de fen ge xian
+comment ""
+
+endif
+
+if RV_PACK_WITH_SETTING_INI
+
+config ROOTFS_INDIVIDUAL_PARTITION
+	bool "rootfs pack at individual partition"
+	default y
+
+menuconfig RV_SET_USERSELF_PARTITION_ONE
+	bool "enable extra partition one"
+	default n
+
+if RV_SET_USERSELF_PARTITION_ONE
+
+config RV_USERSELF_PARTITION_ONE_NAME
+	string "name"
+	default "user_one"
+
+config RV_USERSELF_PARTITION_ONE_TYPE
+	string "type"
+	default "0x80000000"
+	help
+	  0x1:Vendor, 0x2:IDBlock, 0x4:Kernel, 0x8:boot, 0x80000000:data
+
+config RV_USERSELF_PARTITION_ONE_FLAG
+	string "flag"
+	default "0x5"
+	help
+	  1:skip flag, 2:reserved flag, 4:no partition size flag
+
+config RV_USERSELF_PARTITION_ONE_SIZE
+	string "size"
+	default "0"
+	help
+	  bytes (decimalism);
+	  if 0, the size will set to the size of source folder path.
+
+config RV_USERSELF_PARTITION_ONE_ROOTPATH
+	string "source folder path packed to img"
+	default "$(TOP_DIR)/partition_one"
+
+config RV_USERSELF_PARTITION_ONE_FSTYPE
+	string "file system type of this partition"
+	default "ext4"
+	help
+	  remember enable the corresponding fs type in kernel config
+
+endif
+
+endif
+
+endif # if RV_PACK_WITH_SETTING_INI
+
+config RV_ROOTFS_PARTITION_FSTYPE
+	string "file system type of rootfs partition"
+	default "ext4" if RV_PACK_WITH_PARAMETER_TXT
+	default "squashfs" if RV_PACK_WITH_SETTING_INI
+	depends on RV_PACK_WITH_PARAMETER_TXT || (RV_PACK_WITH_SETTING_INI && ROOTFS_INDIVIDUAL_PARTITION)
+	help
+	  support: squashfs, ext2/4; RK can not support ubifs.
+	  NOTE: remember enable the corresponding fs type in kernel config
+
+config RV_OEM_PARTITION_FSTYPE
+	string "file system type of oem partition"
+	default "ext2"
+	depends on RV_PACK_WITH_PARAMETER_TXT
+	help
+	  support: squashfs, ext2/4; RK can not support ubifs.
+	  NOTE: remember enable the corresponding fs type in kernel config
+
+config RV_USERDATA_PARTITION_FSTYPE
+	string "file system type of userdata partition"
+	default "ext2"
+	depends on RV_PACK_WITH_PARAMETER_TXT 
+	help
+	  support: squashfs, ext2/4; RK can not support ubifs.
+	  NOTE: remember enable the corresponding fs type in kernel config
+
+endmenu

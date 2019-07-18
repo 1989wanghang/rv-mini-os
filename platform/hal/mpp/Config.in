@@ -1,0 +1,88 @@
+menuconfig RV_TARGET_MPP
+	bool "mpp"
+	help
+	  Mpp is a set of video hardware-accel codes library, supports
+	  H264E/JPEGE, AVSD/H263D/H264D/H265D/MPEG2D/MPEG4D/VP8D/VP9D/JPEGD.
+
+if RV_TARGET_MPP
+
+config RV_TARGET_MPP_ENABLE_H264E
+	bool "enable h264 encoder"
+	default y
+
+menuconfig RV_TARGET_MPP_ENABLE_H264D
+	bool "enable h264 decoder"
+	default y
+
+if RV_TARGET_MPP_ENABLE_H264D
+
+config RV_TARGET_MPP_H264D_INPUT_NO_BFRAME
+	bool "[h264d]input frame guarantee no b frame"
+	default n
+
+config RV_TARGET_MPP_H264D_BITSTREAM_MAX_SIZE
+	string "[h264d]bitstream buffer max size"
+	default "2*1024*1024"
+	help
+	  the max size of the whole complete h264 frame
+
+config RV_TARGET_MPP_H264D_HEAD_BUF_MAX_SIZE
+	string "[h264d]head buffer max size"
+	default "1*1024*1024"
+	help
+	  spspps and so on, equal extra_data_size in ffmpeg
+
+config RV_TARGET_MPP_H264D_NALU_BUF_MAX_SIZE
+	string "[h264d]nalu buffer max size"
+	default "2*1024*1024"
+
+config RV_TARGET_MPP_H264D_SODB_BUF_MAX_SIZE
+	string "[h264d]sodb buffer max size"
+	default "2*1024*1024"
+
+config RV_TARGET_MPP_H264D_ERROR_INFO_MAX_SIZE
+	string "[h264d]error info max size"
+	default "256*144*4"
+
+endif # if RV_TARGET_MPP_ENABLE_H264D
+
+config RV_TARGET_MPP_ENABLE_JPEGE
+	bool "enable jpeg encoder"
+	default y
+
+config RV_TARGET_MPP_ENABLE_JPEGD
+	bool "enable jpeg decoder"
+	default y
+
+if !RV_BOARD_110X
+config RV_TARGET_MPP_ENABLE_AVSD
+	bool "enable avs decoder"
+	default n
+
+config RV_TARGET_MPP_ENABLE_H263D
+	bool "enable h263 decoder"
+	default n
+
+config RV_TARGET_MPP_ENABLE_H265D
+	bool "enable h265 decoder"
+	default n
+
+config RV_TARGET_MPP_ENABLE_MPEG2D
+	bool "enable mpeg2 decoder"
+	default n
+
+config RV_TARGET_MPP_ENABLE_MPEG4D
+	bool "enable mpeg4 decoder"
+	default n
+
+config RV_TARGET_MPP_ENABLE_VP8D
+	bool "enable vp8 decoder"
+	default n
+
+config RV_TARGET_MPP_ENABLE_VP9D
+	bool "enable vp9 decoder"
+	default n
+
+endif
+
+endif # if RV_TARGET_MPP

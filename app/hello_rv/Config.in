@@ -1,0 +1,21 @@
+menuconfig RV_TARGET_HELLO_RV
+	bool "hello rv"
+	default n
+	help
+	  never set y, as the module's goal is showing how to write rvmk and Config.in.
+
+if RV_TARGET_HELLO_RV
+
+config HELLO_RV_ENABLE_SMILE
+	bool "enable print smile"
+	default y
+	help
+	  Show how to transfer config value to CMakeLists.txt.
+
+config RV_TARGET_HELLO_RV_EXTRA_PRINT_STRING
+	string "extra print string"
+	default ""
+	help
+	  Set the selfdefine string you wanna print
+
+endif

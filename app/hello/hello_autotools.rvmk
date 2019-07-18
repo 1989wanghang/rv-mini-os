@@ -1,0 +1,11 @@
+# module hello_autotools
+# example for autotool build
+
+# demo, do not set y
+RV_TARGET_HELLO_AUTOTOOLS = n
+
+HELLO_AUTOTOOLS_CONFIGURE_DEP_FILES = $($(PKGNAME)_PKGDIR)/src/Makefile.am
+
+HELLO_AUTOTOOLS_TARGET_FILES = $($(PKGNAME)_PKGDIR)/src/hello
+
+$(eval $(rv-generic-autotools))

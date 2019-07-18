@@ -1,0 +1,3 @@
+RV_PARTITION_START_OFFSET="8388608"
+KERNEL_DEFCONFIG="$(RV_BOARD_TYPE)_linux_defconfig"
+BUILDROOT_CONFIG_FILE="$(BOARD_DIR)/$(RV_BOARD_TYPE)/buildroot_config/configs/rk1808_linaro_aarch64_defconfig"

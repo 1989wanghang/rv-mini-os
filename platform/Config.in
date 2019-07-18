@@ -1,0 +1,6 @@
+menu "rockchip platform"
+
+source "platform/hal/Config.in"
+
+endmenu
+

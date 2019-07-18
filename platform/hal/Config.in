@@ -1,0 +1,5 @@
+menu "hal"
+
+source "platform/hal/mpp/Config.in"
+
+endmenu

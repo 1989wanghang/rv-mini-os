@@ -1,0 +1,5 @@
+!*.rvmk
+!.gitignore
+!Config.in
+!patch
+!dl.ini

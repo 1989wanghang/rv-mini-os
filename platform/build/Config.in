@@ -1,0 +1,333 @@
+mainmenu "RK Linux Base SDK Configuration"
+
+config RV_HAVE_DOT_CONFIG
+	bool
+	default y
+
+source "board/Config.in"
+
+menu "Build options"
+
+config RV_DEFCONFIG_FILE
+	string "Location to save rv_project config"
+	default "$(BOARD_DIR)/$(RV_BOARD_TYPE)/board_defconfigs/$(RV_BOARD_VERSION)_defconfig"
+	help
+	  When running 'make savedefconfig', the defconfig file will be
+	  saved in this location.
+
+config RV_JLEVEL
+	int "Number of jobs to run simultaneously (0 for auto)"
+	default "0"
+	help
+	  Number of jobs to run simultaneously. If 0, determine
+	  automatically according to number of CPUs on the host system.
+
+config RV_ENABLE_DEBUG
+	bool "build with debugging symbols"
+	help
+	  Build packages with debugging symbols enabled. All libraries
+	  and binaries in the 'staging' directory will have debugging
+	  symbols, which allows remote debugging even if libraries and
+	  binaries are stripped on the target. Whether libraries and
+	  binaries are stripped on the target is controlled by the
+	  BR2_STRIP_* options below.
+
+if RV_ENABLE_DEBUG
+choice
+	prompt "gcc debug level"
+	default RV_DEBUG_2
+	help
+	  Set the debug level for gcc
+
+config RV_DEBUG_1
+	bool "debug level 1"
+	help
+	  Debug level 1 produces minimal information, enough for making
+	  backtraces in parts of the program that you don't plan to
+	  debug. This includes descriptions of functions and external
+	  variables, but no information about local variables and no
+	  line numbers.
+
+config RV_DEBUG_2
+	bool "debug level 2"
+	help
+	  The default gcc debug level is 2
+
+config RV_DEBUG_3
+	bool "debug level 3"
+	help
+	  Level 3 includes extra information, such as all the macro
+	  definitions present in the program. Some debuggers support
+	  macro expansion when you use -g3.
+endchoice
+endif
+
+config RV_STRIP_strip
+	bool "strip target binaries"
+	default y
+	help
+	  Binaries and libraries in the target filesystem will be
+	  stripped using the normal 'strip' command. This allows to save
+	  space, mainly by removing debugging symbols. Debugging symbols
+	  on the target are needed for native debugging, but not when
+	  remote debugging is used.
+
+choice
+	prompt "gcc optimization level"
+	default RV_OPTIMIZE_S
+	help
+	  Set the optimization level for gcc
+
+config RV_OPTIMIZE_0
+	bool "optimization level 0"
+	help
+	  Do not optimize.
+
+config RV_OPTIMIZE_1
+	bool "optimization level 1"
+	help
+	  Optimize. Optimizing compilation takes somewhat more time, and
+	  a lot more memory for a large function. With -O, the compiler
+	  tries to reduce code size and execution time, without
+	  performing any optimizations that take a great deal of
+	  compilation time. -O turns on the following optimization
+	  flags: -fdefer-pop -fdelayed-branch -fguess-branch-probability
+	  -fcprop-registers -floop-optimize -fif-conversion
+	  -fif-conversion2 -ftree-ccp -ftree-dce -ftree-dominator-opts
+	  -ftree-dse -ftree-ter -ftree-lrs -ftree-sra -ftree-copyrename
+	  -ftree-fre -ftree-ch -funit-at-a-time -fmerge-constants. -O
+	  also turns on -fomit-frame-pointer on machines where doing so
+	  does not interfere with debugging.
+
+config RV_OPTIMIZE_2
+	bool "optimization level 2"
+	help
+	  Optimize even more. GCC performs nearly all supported
+	  optimizations that do not involve a space-speed tradeoff. The
+	  compiler does not perform loop unrolling or function inlining
+	  when you specify -O2. As compared to -O, this option increases
+	  both compilation time and the performance of the generated
+	  code. -O2 turns on all optimization flags specified by -O. It
+	  also turns on the following optimization flags:
+	  -fthread-jumps -fcrossjumping -foptimize-sibling-calls
+	  -fcse-follow-jumps -fcse-skip-blocks -fgcse  -fgcse-lm
+	  -fexpensive-optimizations -fstrength-reduce
+	  -frerun-cse-after-loop -frerun-loop-opt -fcaller-saves
+	  -fpeephole2 -fschedule-insns -fschedule-insns2
+	  -fsched-interblock -fsched-spec -fregmove -fstrict-aliasing
+	  -fdelete-null-pointer-checks -freorder-blocks
+	  -freorder-functions -falign-functions -falign-jumps
+	  -falign-loops -falign-labels -ftree-vrp -ftree-pre. Please
+	  note the warning under -fgcse about invoking -O2 on programs
+	  that use computed gotos.
+
+config RV_OPTIMIZE_3
+	bool "optimization level 3"
+	help
+	  Optimize yet more. -O3 turns on all optimizations specified by
+	  -O2 and also turns on the -finline-functions, -funswitch-loops
+	  and -fgcse-after-reload options.
+
+config RV_OPTIMIZE_G
+	bool "optimize for debugging"
+	help
+	  Optimize for debugging. This enables optimizations that do not
+	  interfere with debugging. It should be the optimization level
+	  of choice for the standard edit-compile-debug cycle, offering
+	  a reasonable level of optimization while maintaining fast
+	  compilation and a good debugging experience.
+
+config RV_OPTIMIZE_S
+	bool "optimize for size"
+	help
+	  Optimize for size. -Os enables all -O2 optimizations that do
+	  not typically increase code size. It also performs further
+	  optimizations designed to reduce code size. -Os disables the
+	  following optimization flags: -falign-functions -falign-jumps
+	  -falign-loops -falign-labels -freorder-blocks
+	  -freorder-blocks-and-partition -fprefetch-loop-arrays
+	  -ftree-vect-loop-version
+	  This is the default.
+
+config RV_OPTIMIZE_FAST
+	bool "optimize for fast"
+	help
+	  Optimize for fast. Disregard strict standards
+	  compliance. -Ofast enables all -O3 optimizations. It also
+	  enables optimizations that are not valid for all
+	  standard-compliant programs. It turns on -ffast-math and the
+	  Fortran-specific -fstack-arrays, unless -fmax-stack-var-size
+	  is specified, and -fno-protect-parens.
+	  At least of gcc 4.6.
+
+endchoice
+
+choice
+	bool "libraries"
+	default RV_SHARED_LIBS
+	help
+	  Select the type of libraries you want to use on the target.
+
+	  The default is to build dynamic libraries and use those on the
+	  target filesystem, except when the architecture and/or the
+	  selected binary format does not support shared libraries.
+
+config RV_STATIC_LIBS
+	bool "static only"
+	help
+	  Build and use only static libraries. No shared libraries will
+	  be installed on the target. This potentially increases your
+	  code size and should only be used if you know what you are
+	  doing. Note that some packages may not be available when this
+	  option is enabled, due to their need for dynamic library
+	  support.
+
+config RV_SHARED_LIBS
+	bool "shared only"
+	help
+	  Build and use only shared libraries. This is the recommended
+	  solution as it saves space and build time.
+
+config RV_SHARED_STATIC_LIBS
+	bool "both static and shared"
+	help
+	  Build both shared and static libraries, but link executables
+	  dynamically. While building both shared and static libraries
+	  take more time and more disk space, having static libraries
+	  may be useful to link some of the applications statically.
+
+endchoice
+
+comment "Security Hardening Options"
+
+choice
+	bool "Stack Smashing Protection"
+	default RV_SSP_ALL
+	help
+	  Enable stack smashing protection support using GCC's
+	  -fstack-protector option family.
+
+	  See
+	  http://www.linuxfromscratch.org/hints/downloads/files/ssp.txt
+	  for details.
+
+	  Note that this requires the toolchain to have SSP support.
+	  This is always the case for glibc and eglibc toolchain, but is
+	  optional in uClibc toolchains.
+
+config RV_SSP_NONE
+	bool "None"
+	help
+	  Disable stack-smashing protection.
+
+config RV_SSP_REGULAR
+	bool "-fstack-protector"
+	help
+	  Emit extra code to check for buffer overflows, such as stack
+	  smashing attacks. This is done by adding a guard variable to
+	  functions with vulnerable objects. This includes functions
+	  that call alloca, and functions with buffers larger than 8
+	  bytes. The guards are initialized when a function is entered
+	  and then checked when the function exits. If a guard check
+	  fails, an error message is printed and the program exits.
+
+config RV_SSP_STRONG
+	bool "-fstack-protector-strong"
+	help
+	  Like -fstack-protector but includes additional functions to be
+	  protected - those that have local array definitions, or have
+	  references to local frame addresses.
+
+config RV_SSP_ALL
+	bool "-fstack-protector-all"
+	help
+	  Like -fstack-protector except that all functions are
+	  protected. This option might have a significant performance
+	  impact on the compiled binaries.
+
+endchoice
+
+choice
+	bool "RELRO Protection"
+	depends on RV_SHARED_LIBS
+	help
+	  Enable a link-time protection know as RELRO (RELocation Read Only)
+	  which helps to protect from certain type of exploitation techniques
+	  altering the content of some ELF sections.
+
+config RV_RELRO_NONE
+	bool "None"
+	help
+	  Disables Relocation link-time protections.
+
+config RV_RELRO_PARTIAL
+	bool "Partial"
+	help
+	  This option makes the dynamic section not writeable after
+	  initialization (with almost no performance penalty).
+
+config RV_RELRO_FULL
+	bool "Full"
+	help
+	  This option includes the partial configuration, but also
+	  marks the GOT as read-only at the cost of initialization time
+	  during program loading, i.e every time an executable is started.
+
+endchoice
+
+comment "RELocation Read Only (RELRO) needs shared libraries"
+	depends on !RV_SHARED_LIBS
+
+choice
+	bool "Buffer-overflow Detection (FORTIFY_SOURCE), need glibc and optimization"
+	depends on !RV_OPTIMIZE_0
+	default RV_FORTIFY_SOURCE_NONE
+	help
+	  depends on TOOLCHAIN_USES_GLIBC && !RV_OPTIMIZE_0
+	  Enable the _FORTIFY_SOURCE macro which introduces additional
+	  checks to detect buffer-overflows in the following standard library
+	  functions: memcpy, mempcpy, memmove, memset, strcpy, stpcpy,
+	  strncpy, strcat, strncat, sprintf, vsprintf, snprintf, vsnprintf,
+	  gets.
+
+	  NOTE: This feature requires an optimization level of s/1/2/3/g
+
+	  Support for this feature has been present since GCC 4.x.
+
+config RV_FORTIFY_SOURCE_NONE
+	bool "None"
+	help
+	  Disables additional checks to detect buffer-overflows.
+
+config RV_FORTIFY_SOURCE_1
+	bool "Conservative"
+	help
+	  This option sets _FORTIFY_SOURCE to 1 and only introduces
+	  checks that shouldn't change the behavior of conforming
+	  programs.  Adds checks at compile-time only.
+
+config RV_FORTIFY_SOURCE_2
+	bool "Aggressive"
+	help
+	  This option sets _FORTIFY_SOURCES to 2 and some more
+	  checking is added, but some conforming programs might fail.
+	  Also adds checks at run-time (detected buffer overflow
+	  terminates the program)
+
+endchoice
+
+# comment "Fortify Source needs a glibc toolchain and optimization"
+#	 depends on (!BR2_TOOLCHAIN_USES_GLIBC || RV_OPTIMIZE_0)
+endmenu
+
+source "platform/build/pack-partition_Config.in"
+
+source "u-boot/Config.in"
+source "kernel/Config.in"
+source "buildroot/Config.in"
+
+source "platform/Config.in"
+source "thirdparty/Config.in"
+
+source "app/example_Config.in"
+source "app/app_Config.in"

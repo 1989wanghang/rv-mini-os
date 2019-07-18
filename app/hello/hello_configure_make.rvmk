@@ -1,0 +1,23 @@
+# module hello_configure_make
+# example for configure+make build
+
+# Lazy for do not write 'configure' by myself.
+# If your module have ready 'configure' file, do not need this dependency
+HELLO_CONFIGURE_MAKE_DEPENDENCIES = hello_autotools
+
+# example, do not set y
+RV_TARGET_HELLO_CONFIGURE_MAKE=n
+
+HELLO_CONFIGURE_MAKE_CONF_OPTS = \
+		--target=$(GNU_TARGET_NAME) \
+		--host=$(GNU_TARGET_NAME) \
+		--build=$(GNU_HOST_NAME) \
+		--prefix=/usr \
+		--exec-prefix=/usr \
+		--sysconfdir=/etc \
+		--localstatedir=/var \
+		--program-prefix=""
+
+HELLO_AUTOTOOLS_TARGET_FILES = $($(PKGNAME)_PKGDIR)/src/hello
+
+$(eval $(rv-generic-configure))

@@ -1,0 +1,6 @@
+menu "thirdparty"
+
+source "thirdparty/ffmpeg/Config.in"
+
+endmenu
+

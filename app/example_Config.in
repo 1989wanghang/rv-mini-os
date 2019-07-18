@@ -1,0 +1,7 @@
+# include all Config.in of examples
+
+menu "Example"
+
+source "app/hello_rv/Config.in"
+
+endmenu

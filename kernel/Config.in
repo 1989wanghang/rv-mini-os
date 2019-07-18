@@ -1,0 +1,65 @@
+menu "kernel"
+
+config KERNEL_DEFCONFIG
+	string "kernel defconfig"
+	default "$(RV_BOARD_TYPE)_defconfig"
+
+config KERNEL_DTS_NAME
+	string "kernel dts name"
+	default "$(RV_BOARD_VERSION)"
+
+config RV_TARGET_KERNEL_INITRAMFS
+	string "config of CONFIG_INITRAMFS_SOURCE"
+	default ""
+	help
+	  recovery: app/recovery/mini_system
+
+comment "Debug: Convenience for some debugging setting."
+
+config RV_TARGET_KERNEL_MEMORY_SIZE
+	string "total memory size"
+	default ""
+	help
+	  8bytes hexadecimal start with 0x;
+	  CVR default 0x08000000;
+	  SDV default 0x10000000;
+
+config RV_TARGET_KERNEL_ION_SIZE
+	string "ion memory size"
+	default ""
+	help
+	  8bytes hexadecimal start with 0x
+	  CVR default 0x04400000;
+	  SDV default 0x0a000000;
+
+config RV_TARGET_KERNEL_ACLK_RKVENC_PRE
+	string "aclk value of rkvenc pre"
+	default ""
+	help
+	  decimal value, default 300000000
+
+config RV_TARGET_KERNEL_CLK_VENC_CORE
+	string "clk value of venc core"
+	default ""
+	help
+	  decimal value, default 300000000
+
+config RV_TARGET_KERNEL_ACLK_RKVDEC_PRE
+	string "aclk value of rkvdec pre"
+	default ""
+	help
+	  decimal value, default 300000000
+
+config RV_TARGET_KERNEL_ACLK_VPU_PRE
+	string "aclk value of vpu pre"
+	default ""
+	help
+	  decimal value, default 300000000
+
+config RV_TARGET_KERNEL_CLK_RGA
+	string "clk value of rga"
+	default ""
+	help
+	  decimal value, default 300000000
+
+endmenu

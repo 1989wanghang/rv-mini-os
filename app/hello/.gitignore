@@ -1,0 +1,5 @@
+*
+!.gitignore
+!*.rvmk
+!configure.ac
+!Makefile.am

@@ -1,0 +1,274 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta http-equiv="Content-Style-Type" content="text/css" />
+  <meta name="generator" content="pandoc" />
+  <meta name="author" content="福州瑞芯微电子股份有限公司" />
+  <meta name="date" content="2018-09-10" />
+  <title>RK Linux Base SDK 开发者指南</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <link rel="stylesheet" href="./template.css" type="text/css" />
+</head>
+<body>
+<div id="header">
+<h1 class="title">RK Linux Base SDK 开发者指南</h1>
+<h2 class="author">福州瑞芯微电子股份有限公司</h2>
+<h3 class="date">2018-09-10</h3>
+</div>
+<div id="TOC">
+<ul>
+<li><a href="#版权">版权</a></li>
+<li><a href="#准备">准备</a><ul>
+<li><a href="#编译环境">编译环境</a></li>
+<li><a href="#sdk-工程下载">SDK 工程下载</a><ul>
+<li><a href="#对外release-版本">对外release 版本</a></li>
+<li><a href="#内部develop">内部develop</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#编译">编译</a><ul>
+<li><a href="#配置">配置</a></li>
+<li><a href="#编译-1">编译</a><ul>
+<li><a href="#特殊模块">特殊模块</a></li>
+</ul></li>
+<li><a href="#生成固件">生成固件</a></li>
+<li><a href="#烧写固件">烧写固件</a></li>
+</ul></li>
+<li><a href="#移植新的模块">移植新的模块</a><ul>
+<li><a href="#config.in">Config.in</a></li>
+<li><a href="#module_name.rvmk">[module_name].rvmk</a></li>
+</ul></li>
+</ul>
+</div>
+<hr />
+<h1 id="版权">版权</h1>
+<p><strong>免责声明</strong></p>
+<p>您购买的产品、服务或特性等应受瑞芯微公司商业合同和条款的约束，本文档中描述的全部或部分产品、服务或特性可能不在您的购买或使用范围之内。除非合同另有约定，瑞芯微公司对本文档内容不做任何明示或默示的声明或保证。</p>
+<p>由于产品版本升级或其他原因，本文档内容会不定期进行更新。除非另有约定，本文档仅作为使用指导，本文档中的所有陈述、信息和建议不构成任何明示或暗示的担保。</p>
+<p><strong>商标声明</strong></p>
+<p>Rockchip、RockchipTM 图标、瑞芯微和其他瑞芯微商标均为福州瑞芯微电子有限公司的商标，并归瑞芯微电子有限公司所有。</p>
+<p>本文档提及的其他所有商标或注册商标，由各自的所有人拥有。</p>
+<p><strong>版权所有 © 福州市瑞芯微电子股份有限公司 2018</strong></p>
+<p>非经本公司书面许可，任何单位和个人不得擅自摘抄、复制本文档内容的部分或全部，并不得以任何形式传播。</p>
+<div class="figure">
+<img src="media/company.png" width="156" height="72" />
+
+</div>
+<p>福州市瑞芯微电子股份有限公司</p>
+<p>Fuzhou Rockchip Electronics Co., Ltd.</p>
+<p>地址： 福建省福州市铜盘路软件园A区18号</p>
+<p>网址： www.rock-chips.com</p>
+<p>客户服务电话： +86-0591-83991906</p>
+<p>客户服务传真： +86-0591-83951833</p>
+<p>客户服务邮箱： www.rock-chips.com</p>
+<hr />
+<h1 id="准备">准备</h1>
+<h2 id="编译环境">编译环境</h2>
+<ul>
+<li><p>ubuntu 14.04:</p>
+<p><code>不支持</code></p></li>
+<li><p>ubuntu 16.04:</p>
+<pre><code>sudo apt install wget git repo build-essential libncurses5-dev minicom</code></pre>
+<code>RK人员还需要执行(markdown语法遵循</code><a href="https://pandoc.org/MANUAL.html#pandocs-markdown"><code>pandoc</code></a><code>):</code>
+<ul>
+<li><code>sudo apt autoremove pandoc</code></li>
+<li><code>sudo apt install happy</code></li>
+<li><code>sudo apt install cabal-install</code></li>
+<li><code>cabal update</code></li>
+<li><code>cabal install pandoc pandoc-include pandoc-citeproc --constraint 'pandoc &lt; 2'</code></li>
+<li><code>添加$HOME/.cabal/bin到PATH环境变量中</code></li>
+</ul></li>
+</ul>
+<ul>
+<li><p>ubuntu 18.04:</p>
+<p><code>后续支持</code></p></li>
+</ul>
+<h2 id="sdk-工程下载">SDK 工程下载</h2>
+<h3 id="对外release-版本">对外release 版本</h3>
+<ul>
+<li><p>下载</p>
+<pre><code>mkdir &lt;project dir&gt;
+repo init -u ssh://git@10.10.10.78:2222/argus/manifest.git -b master \
+-m rv1108_release.xml --no-repo-verify
+cd &lt;project dir&gt;
+repo sync</code></pre></li>
+<li><p>同步/更新</p></li>
+</ul>
+<blockquote>
+<pre><code>cd &lt;project dir&gt; &amp;&amp; repo sync</code></pre>
+</blockquote>
+<ul>
+<li>目录结构简要说明</li>
+</ul>
+<blockquote>
+<p><a href="../README.md"><code>rv1108 目录树</code></a></p>
+</blockquote>
+<h3 id="内部develop">内部develop</h3>
+<ul>
+<li><p>下载</p>
+<pre><code>git clone ssh://wangh@10.10.10.29:29418/rk/rk1108/apps/video \
+-o gerrit -b develop &lt;project dir&gt;</code></pre></li>
+<li><p>同步/更新</p></li>
+</ul>
+<blockquote>
+<pre><code>cd &lt;project dir&gt; &amp;&amp; ./dl.py</code></pre>
+</blockquote>
+<hr />
+<h1 id="编译">编译</h1>
+<h2 id="配置">配置</h2>
+<ul>
+<li><p>查看已有配置</p>
+<pre><code>make help / make list-defconfigs:
+列出Built-in configs，这些配置存在于目录board/configs下</code></pre></li>
+<li><p>载入已有配置</p>
+<pre><code>make &lt;product&gt;_defconfig</code></pre></li>
+<li><p>自定义配置</p>
+<pre><code>make menuconfig
+
+每一项的说明可在配置界面里查看</code></pre></li>
+<li><p>保存配置</p>
+<pre><code>make savedefconfig
+
+注意:
+  工程配置路径为board/configs, 保存的名称必须以 _defconfig 结尾
+  buildroot配置路径为board/configs/$(RV_BOARD_TYPE)/buildroot_config/configs, 保存的名称必须以 _defconfig 结尾</code></pre>
+<p><strong>对于子模块buildroot和kernel，同样可以在工程根目录执行make buildroot-menuconfig/make buildroot-savedefconfig以及make kernel-menuconfig/make kernel-savedefconfig 来进行模块里的自定义配置和保存配置</strong></p></li>
+</ul>
+<h2 id="编译-1">编译</h2>
+<ul>
+<li><p>全局编译</p>
+<pre><code>make</code></pre></li>
+<li><p>清除全局编译</p>
+<pre><code>make clean / make distclean</code></pre></li>
+<li><p>模块编译</p>
+<pre><code>make &lt;module_name&gt;
+
+&lt;module_name&gt;和rvmk的名称一致</code></pre></li>
+<li><p>清除模块编译</p>
+<pre><code>make &lt;module_name&gt;-buildclean</code></pre></li>
+<li><p>模块重新编译</p>
+<pre><code>make &lt;module_name&gt;-rebuild
+相当于 make &lt;module_name&gt;-buildclean &amp;&amp; make &lt;module_name&gt;</code></pre>
+<p><strong>编译时加入V=1可查看编译过程，方便调试</strong></p>
+<p><strong>更多，见<em><code>make help</code></em></strong></p>
+<p>内部生成文档 :</p>
+<ul>
+<li>增加新的md，并依据语言类型加入到<a href="../internal_doc/Developer_Guides.md"><code>Developer_Guides.md</code></a> 或 <a href="../internal_doc/开发指南.md"><code>开发指南.md</code></a></li>
+<li><code>make doc</code></li>
+<li>用浏览器打开<a href="./"><code>doc</code></a>目录下的对应html查看</li>
+</ul></li>
+</ul>
+<h3 id="特殊模块">特殊模块</h3>
+<ul>
+<li><p>buildroot</p>
+<p><strong>TODO...</strong></p></li>
+</ul>
+<h2 id="生成固件">生成固件</h2>
+<pre><code>make fw</code></pre>
+<p><em>make fw</em>:</p>
+<ul>
+<li><p>make <a href="../platform/build/pack-kernel.mk">pack-kernel</a></p></li>
+<li><p>make <a href="../platform/build/pack-rootfs.mk" title="roofs makefile">pack-rootfs</a></p>
+<ul>
+<li>&lt;buildroot&gt;/output/target</li>
+<li>out/target</li>
+<li>board/&lt;board_type&gt;/init.d</li>
+<li>mksquashfs/gzip</li>
+</ul>
+<p>由于为了固件的尽量小，文件是否被打包进固件是代码显示指定的， 在增减模块的时候，注意修改<a href="../platform/build/pack-rootfs.mk" title="roofs makefile">rootfs_mk_file</a></p></li>
+</ul>
+<ul>
+<li><p>make <a href="../platform/build/pack-partition_setting_ini.mk">partition_setting_ini</a></p>
+<p><strong>固件生成于out/images</strong></p></li>
+</ul>
+<h2 id="烧写固件">烧写固件</h2>
+<p>板端：</p>
+<pre><code>短路 或者 烧写键；如果已烧写过能启动控制台，执行reboot loader</code></pre>
+<p>Ubuntu:</p>
+<pre><code>make dl</code></pre>
+<p>Windows:</p>
+<pre><code>TODO</code></pre>
+<h1 id="移植新的模块">移植新的模块</h1>
+<p>规则类似于<a href="https://buildroot.org/downloads/manual/manual.html">buildroot</a>, Config.in做配置，[module_name].rvmk做<a href="https://www.gnu.org/software/make/manual/make.html">Makefile</a>编译具体命令</p>
+<h2 id="config.in">Config.in</h2>
+<ul>
+<li>入口<a href="../platform/build/Config.in"><code>Config.in</code></a></li>
+<li>模块Config.in编写时，必须有bool变量RV_TARGET_[MODULE_NAME]， 当为y的时候，执行make命令时才会编译此模块. 注意同时修改<a href="../platform/build/pack-rootfs.mk" title="roofs makefile">rootfs_mk_file</a>来确定此模块需要打包进固件的文件</li>
+<li>参考 <a href="../app/hello_rv/Config.in"><code>app/hello_rv/Config.in</code></a></li>
+</ul>
+<h2 id="module_name.rvmk">[module_name].rvmk</h2>
+<p>默认, thirdparty/*/*.rvmk, platform/*/*.rvmk, app/*/*.rvmk文件会被自动添加进总Makefile中.</p>
+<ul>
+<li><p>关键自定义函数:</p>
+<ul>
+<li><p>[MODULE_NAME]_CONFIGURE_CMDS :<br />
+生成[MODULE_NAME] configure目标(即变量 [MODULE_NAME]_TARGET_CONFIGURE)时将被调用的函数</p></li>
+<li><p>[MODULE_NAME]_BUILD_CMDS :<br />
+编译[MODULE_NAME] configure目标时调用的函数，在configure cmds之后</p></li>
+<li><p>[MODULE_NAME]_INSTALL_TARGET_CMDS :<br />
+生成[MODULE_NAME] install目标时被调用的函数，在build cmds之后</p></li>
+</ul>
+<p>编译模块时原理上是定义以上三个函数，编译的时候依次调用，所有变量的设置都是为此服务</p>
+<ul>
+<li>[MODULE_NAME]_MAKECLEAN_CMDS :<br />
+make [MODULE_NAME]-buildclean时被调用，清除模块编译的中间过程内容</li>
+</ul></li>
+<li><p>关键变量:</p>
+<ul>
+<li><p>pkgdir :<br />
+[module_name].rvmk文件所在目录</p></li>
+<li><p>pkgname / PKGNAME :<br />
+即[module_name] / [MODULE_NAME]</p></li>
+<li><p>[MODULE_NAME]_BUILDDIR :<br />
+存放此模块编译中间过程内容的文件目录</p></li>
+<li><p>[MODULE_NAME]_PKGDIR :<br />
+此模块源代码所在目录</p></li>
+</ul></li>
+<li><p>可能需要重定义的变量 :</p>
+<ul>
+<li><p>[MODULE_NAME]_DEPENDENCIES :<br />
+定义依赖的模块，会先于当前模块配置编译</p></li>
+<li><p>[MODULE_NAME]_TARGET_FILES :<br />
+定义执行install所依赖的目标，这些目标有更新变化的时候，<project>根目录执行make， [MODULE_NAME] install目标</p></li>
+<li><p>[MODULE_NAME]_CONFIGURE_DEP_CONFIGS :<br />
+定义configure依赖的变量，当这些变量发生变化的时候， make会自动再重新调用生成[MODULE_NAME] configure目标</p></li>
+<li><p>[MODULE_NAME]_CONFIGURE_DEP_FILES :<br />
+定义configure依赖的文件，当这些文件发生变化的时候， make会自动再重新调用生成[MODULE_NAME] configure目标.<br />
+一般是比如Makefile, configure, CMakeLists等会影响配置的文件.</p></li>
+<li><p>[MODULE_NAME]_AUTOCONFIGS :<br />
+定义需要写入到$(AUTOCONF_HDR_DIR)/[MODULE_NAME]_autoconf.h头文件中的变量， 这些变量<strong>必须以'RV_TARGET_'开头</strong>. 当全局配置发生变化时，make会自动生成此头文件，以便代码能依据这些变量的变化来做相应的编译.<br />
+注意，我们这边约定，本模块的只允许代码中include本模块的[MODULE_NAME]_autoconf.h， 不允许去include其他模块[other_MODULE_NAME]_autoconf.h， 如果需要使用到其他模块的变量，可将此变量加入到[MODULE_NAME]_AUTOCONFIGS中，这样， 这个需要的变量会作为宏定义出现在此模块的[MODULE_NAME]_autoconf.h中</p></li>
+</ul>
+<p>参考范例：<a href="../app/hello_rv/hello_rv.rvmk"><code>app/hello_rv/hello_rv.rvmk</code></a></p></li>
+</ul>
+<ul>
+<li><p>预定义模块 :</p>
+<ul>
+<li><p><a href="../platform/build/pkg-autotools.mk">pkg-autotools.mk</a> :<br />
+如果是autotools的方式，则在rvmk文件最后调用$(eval $(rv-generic-autotools));<br />
+参考范例：<a href="../app/hello/hello_autotools.rvmk"><code>app/hello/hello_autotools.rvmk</code></a></p></li>
+<li><p><a href="../platform/build/pkg-makefile.mk">pkg-makefile.mk</a> :<br />
+如果是使用makefile编译方式或者./configure+make编译的方式， 则在rvmk文件最后调用$(eval <span class="math inline">(<em>r</em><em>v</em> − <em>g</em><em>e</em><em>n</em><em>e</em><em>r</em><em>i</em><em>c</em> − <em>m</em><em>a</em><em>k</em><em>e</em><em>f</em><em>i</em><em>l</em><em>e</em>))<em>或</em></span>(eval $(rv-generic-configure));<br />
+参考范例：<a href="../app/hello/hello_makefile.rvmk"><code>app/hello/hello_makefile.rvmk</code></a>, <a href="../app/hello/hello_configure_make.rvmk"><code>app/hello/hello_configure_make.rvmk</code></a></p></li>
+<li><p><a href="../platform/build/pkg-cmake.mk">pkg-cmake.mk</a> :<br />
+如果是使用<a href="https://cmake.org/cmake/help/v3.8">cmake</a>编译方式，则在rvmk文件最后调用$(eval $(rv-generic-cmake));<br />
+参考范例：<a href="../app/hello_rv/hello_rv.rvmk"><code>app/hello_rv/hello_rv.rvmk</code></a></p></li>
+<li><p><a href="../platform/build/pkg-cp.mk">pkg-cp.mk</a> :<br />
+如果是已经生成好的二进制文件等，则在rvmk文件最后调用$(eval $(rv-generic-cp));<br />
+参考范例：<a href="../app/hello/hello_cp.rvmk"><code>app/hello/hello_cp.rvmk</code></a></p></li>
+</ul>
+<p><strong>如果是未知的编译方式，那么推荐先改造为<a href="https://cmake.org/cmake/help/v3.8">cmake</a>编译方式，然后再按上述来编写规则</strong></p></li>
+</ul>
+<dl>
+<dt><em>内部develop还需要为新模块增加<code>dl.ini</code></em></dt>
+<dd><p><em><code>dl.ini</code> 变量定义参考<code>kernel/dl.ini</code>，<code>buildroot/dl.ini</code>等</em></p>
+</dd>
+</dl>
+<div id="footer">
+  <br />
+  <hr style="border: 1px dashed #0000fff"/>
+  Copyright &copy; 2018 <a href="http://www.rock-chips.com/a/en/index.html">Fuzhou Rockchip Electronics Co., Ltd.</a>
+  版权所有 &copy; 2018 <a href="http://www.rock-chips.com">福州瑞芯微电子股份有限公司</a>
+</div>
+</body>
+</html>

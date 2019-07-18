@@ -1,0 +1,4 @@
+LOCAL_PATH := $(pkgdir)
+
+include $(LOCAL_PATH)/mpp/mpp.rvmk
+

@@ -1,0 +1,25 @@
+# module hello_rv
+# example for cmake build and define specail variables
+
+# just for test
+HELLO_RV_DEPENDENCIES = hello_autotools
+
+# The target file will generated in $($(PKGNAME)_BUILDDIR)) for cmake build,
+# while it in $($(PKGNAME)_PKGDIR)) for makefile build.
+HELLO_RV_TARGET_FILES = $($(PKGNAME)_BUILDDIR)src/hello_rv
+
+# cause reconfigure if the timestamp of these files change
+HELLO_RV_CONFIGURE_DEP_FILES = $($(PKGNAME)_PKGDIR)/src/CMakeLists.txt
+
+# cause reconfigure if the value of these variables change
+HELLO_RV_CONFIGURE_DEP_CONFIGS = HELLO_RV_ENABLE_SMILE
+
+HELLO_RV_CONF_OPTS = -DRV_ENABLE_SMILE=$(if $(HELLO_RV_ENABLE_SMILE),1,0)
+
+# assign other module's variable
+HELLO_RV_AUTOCONFIGS = RV_TARGET_HELLO_AUTOTOOLS
+
+# assign this module's variable
+HELLO_RV_AUTOCONFIGS = RV_TARGET_HELLO_RV_EXTRA_PRINT_STRING
+
+$(eval $(rv-generic-cmake))

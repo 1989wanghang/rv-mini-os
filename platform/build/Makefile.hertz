@@ -1,0 +1,462 @@
+# Copyright 2018 Rockchip Electronics Co., Ltd. All Rights Reserved.
+# author: hertz.wang, wangh@rock-chips.com
+# modified from buildroot/Makefile
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+
+# Delete default rules.
+.SUFFIXES:
+
+# we want bash as shell
+SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
+	 else if [ -x /bin/bash ]; then echo /bin/bash; \
+	 else echo sh; fi; fi)
+
+noconfig_targets := menuconfig nconfig gconfig xconfig config oldconfig randconfig \
+	defconfig %_defconfig silentoldconfig olddefconfig \
+	doc
+
+nobuild_targets := clean distclean help show-targets printvars \
+	%-show-depends list-defconfigs savedefconfig \
+	%-menuconfig %-list-defconfigs %-savedefconfig \
+	pack-kernel pack-rootfs fw dl dl-% prepare-gdb \
+	partition_setting_ini partition_parameter_txt \
+	%-buildclean
+
+# mask check, copy from buildroot/Makefile
+REQ_UMASK = 0022
+
+ifneq ("$(origin OUT_DIR)", "command line")
+OUT_DIR := $(CURDIR)/out
+endif
+override OUT_DIR := $(patsubst %/,%,$(patsubst %.,%,$(OUT_DIR)))
+ABSOLUTE_OUT_DIR := $(shell mkdir -p $(OUT_DIR) >/dev/null 2>&1)$(realpath $(OUT_DIR))
+ABSOLUTE_CUR_DIR := $(realpath $(CURDIR))
+EXTRAMAKEARGS := OUT_DIR=$(ABSOLUTE_OUT_DIR)
+ifneq ($(shell umask):$(CURDIR):$(OUT_DIR),$(REQ_UMASK):$(ABSOLUTE_CUR_DIR):$(ABSOLUTE_OUT_DIR))
+.PHONY: _all $(MAKECMDGOALS)
+
+$(MAKECMDGOALS): _all
+	@:
+
+_all:
+	@umask $(REQ_UMASK) && \
+		$(MAKE) -C $(ABSOLUTE_CUR_DIR) --no-print-directory \
+			$(MAKECMDGOALS) $(EXTRAMAKEARGS)
+
+else ifneq ($(RV_BUILD_CHECKED),y)
+
+RV_NEED_CHECK = y
+#ifneq ($(filter $(nobuild_targets),$(MAKECMDGOALS)),)
+#RV_NEED_CHECK =
+#else ifneq ($(filter $(noconfig_targets),$(MAKECMDGOALS)),)
+#RV_NEED_CHECK =
+#endif
+
+ifneq ($(filter $(noconfig_targets) $(nobuild_targets),$(MAKECMDGOALS)),)
+RV_NEED_CHECK =
+endif
+
+.PHONY: _all $(MAKECMDGOALS)
+
+$(MAKECMDGOALS): _all
+	@:
+
+_all:
+	$(if $(RV_NEED_CHECK),@RV_BUILD_CHECKED=y $(MAKE) check-need-clean)
+	$(if $(RV_NEED_CHECK),$(if $(filter buildroot,$(MAKECMDGOALS)),,@RV_BUILD_CHECKED=y $(MAKE) buildroot))
+	@RV_BUILD_CHECKED=y $(MAKE) $(MAKECMDGOALS)
+	
+else
+
+all:
+.PHONY: all
+.NOTPARALLEL:
+MAKEOVERRIDES :=
+export CDPATH :=
+
+# MAKE_VERSION keep consistent with buildroot
+RUNNING_MAKE_VERSION := $(MAKE_VERSION)
+MIN_MAKE_VERSION = 3.81
+ifneq ($(firstword $(sort $(RUNNING_MAKE_VERSION) $(MIN_MAKE_VERSION))),$(MIN_MAKE_VERSION))
+$(error You have make '$(RUNNING_MAKE_VERSION)' installed. GNU make >= $(MIN_MAKE_VERSION) is required)
+endif
+
+# fixed path declaration
+TOP_DIR := $(ABSOLUTE_CUR_DIR)
+BUILD_SCRIPT_DIR := $(TOP_DIR)/platform/build
+BR_TOP_DIR =
+CONFIG_CONFIG_IN = $(BUILD_SCRIPT_DIR)/Config.in
+CONFIG = $(BR_TOP_DIR)/support/kconfig
+BOARD_DIR := $(TOP_DIR)/board
+CONFIG_DIR := $(OUT_DIR)/configs
+BUILD_DIR := $(OUT_DIR)/build
+IMAGE_DIR := $(OUT_DIR)/images
+HOST_DIR := $(OUT_DIR)/host
+TARGET_DIR := $(OUT_DIR)/target
+ROOTFS_OVERLAY_DIR := $(OUT_DIR)/overlay
+AUTOCONF_HDR_DIR := $(TARGET_DIR)/usr/include/autoconfig
+HOST_CONFIG_DIR := $(BUILD_DIR)/host-config
+
+BR_STAGING_DIR = $(BR_TOP_DIR)/output/staging
+BR_TARGET_DIR = $(BR_TOP_DIR)/output/target
+
+OEM_DIR := $(OUT_DIR)/oem
+USERDATA_DIR := $(OUT_DIR)/userdata
+
+$(BUILD_DIR) $(IMAGE_DIR) $(HOST_DIR) $(ROOTFS_OVERLAY_DIR) \
+$(AUTOCONF_HDR_DIR) $(CONFIG_DIR) $(OEM_DIR) $(USERDATA_DIR):
+	@mkdir -p $@
+
+$(TARGET_DIR):
+	$(Q)$(foreach dir,etc usr/include usr/bin usr/lib usr/share, mkdir -p $@/$(dir);)
+
+# check the necessary files exist
+ifneq ($(wildcard $(TOP_DIR)/buildroot/.dl),)
+BR_TOP_DIR = $(TOP_DIR)/buildroot/$(shell cat $(TOP_DIR)/buildroot/.dl)
+else
+$(error buildroot missing? try ./dl.py buildroot)
+endif
+
+ifeq ($(MAKECMDGOALS),)
+BUILDING = y
+else ifneq ($(filter-out $(nobuild_targets),$(MAKECMDGOALS)),)
+BUILDING = y
+endif
+
+# Include some helper macros and variables from buildroot
+include $(BR_TOP_DIR)/support/misc/utils.mk
+
+RV_CONFIG = $(CONFIG_DIR)/.config
+ifeq ($(filter $(noconfig_targets),$(MAKECMDGOALS)),)
+-include $(RV_CONFIG)
+-include $(BR_TOP_DIR)/.config
+endif
+
+# Use 'make V=1' to see the full commands
+ifeq ("$(origin V)", "command line")
+  KBUILD_VERBOSE = $(V)
+endif
+ifndef KBUILD_VERBOSE
+  KBUILD_VERBOSE = 0
+endif
+
+ifeq ($(KBUILD_VERBOSE),1)
+  Q =
+ifndef VERBOSE
+  VERBOSE = 1
+endif
+export VERBOSE
+else
+  Q = @
+endif
+
+# kconfig uses CONFIG_SHELL
+CONFIG_SHELL := $(SHELL)
+
+export SHELL CONFIG_SHELL Q KBUILD_VERBOSE
+
+HOST_PKG_CONFIG_PATH := $(PKG_CONFIG_PATH)
+unexport PKG_CONFIG_PATH
+unexport PKG_CONFIG_SYSROOT_DIR
+unexport PKG_CONFIG_LIBDIR
+unexport DESTDIR
+unexport RUBYOPT
+
+HOSTCC := gcc
+HOSTCC := $(shell which $(HOSTCC) || type -p $(HOSTCC) || echo gcc)
+HOSTCC_NOCCACHE := $(HOSTCC)
+HOSTCXX := g++
+HOSTCXX := $(shell which $(HOSTCXX) || type -p $(HOSTCXX) || echo g++)
+HOSTCXX_NOCCACHE := $(HOSTCXX)
+HOSTAR := $(shell which ar || type -p ar || echo ar)
+HOSTAS := $(shell which as || type -p as || echo as)
+HOSTCPP := $(shell which cpp || type -p cpp || echo cpp)
+HOSTLD := $(shell which ld || type -p ld || echo ld)
+HOSTLN := $(shell which ln || type -p ln || echo ln)
+HOSTNM := $(shell which nm || type -p nm || echo nm)
+HOSTOBJCOPY := $(shell which objcopy || type -p objcopy || echo objcopy)
+HOSTRANLIB := $(shell which ranlib || type -p ranlib || echo ranlib)
+SED := $(shell which sed || type -p sed) -i -e
+export HOSTAR HOSTAS HOSTCC HOSTCXX HOSTLD HOSTCC_NOCCACHE HOSTCXX_NOCCACHE
+
+export HOSTARCH := $(shell LC_ALL=C $(HOSTCC_NOCCACHE) -v 2>&1 | \
+	sed -e '/^Target: \([^-]*\).*/!d' \
+	    -e 's//\1/' \
+	    -e 's/i.86/x86/' \
+	    -e 's/sun4u/sparc64/' \
+	    -e 's/arm.*/arm/' \
+	    -e 's/sa110/arm/' \
+	    -e 's/ppc64/powerpc64/' \
+	    -e 's/ppc/powerpc/' \
+	    -e 's/macppc/powerpc/' \
+	    -e 's/sh.*/sh/' )
+
+HOSTCC_VERSION := $(shell $(HOSTCC_NOCCACHE) --version | \
+	sed -n -r 's/^.* ([0-9]*)\.([0-9]*)\.([0-9]*)[ ]*.*/\1 \2/p')
+ifneq ($(firstword $(HOSTCC_VERSION)),4)
+HOSTCC_VERSION := $(firstword $(HOSTCC_VERSION))
+endif
+
+include $(BR_TOP_DIR)/package/pkg-utils.mk
+# recursive wildcard, be careful not too deep
+rwildcard=$(wildcard $(1)/$(2)) \
+	$(foreach d,$(wildcard $(1)/*),$(call rwildcard,$(d),$(2)))
+
+.PHONY: printvars
+printvars:
+	@:$(foreach V, \
+		$(if $(VARS),$(filter $(VARS),$(.VARIABLES)),$(.VARIABLES)), \
+		$(if $(filter-out environment% default automatic, \
+				$(origin $V)), \
+		$(if $(QUOTED_VARS),\
+			$(info $V='$(subst ','\'',$(if $(RAW_VARS),$(value $V),$($V)))'), \
+			$(info $V=$(if $(RAW_VARS),$(value $V),$($V))))))
+
+ifeq ($(RV_HAVE_DOT_CONFIG),y)
+
+unexport CROSS_COMPILE
+unexport ARCH
+unexport CC
+unexport LD
+unexport AR
+unexport CXX
+unexport CPP
+unexport RANLIB
+unexport CFLAGS
+unexport CXXFLAGS
+unexport GREP_OPTIONS
+unexport TAR_OPTIONS
+unexport CONFIG_SITE
+unexport QMAKESPEC
+unexport TERMINFO
+unexport MACHINE
+unexport OUT_DIR
+unexport GCC_COLORS
+
+PACKAGES :=
+PACKAGES_ALL :=
+QUIET := $(if $(findstring s,$(filter-out --%,$(MAKEFLAGS))),-q)
+
+ARCH := $(call qstrip,$(BR2_ARCH))
+KERNEL_ARCH := $(shell echo "$(ARCH)" | sed -e "s/-.*//" \
+	-e s/i.86/i386/ -e s/sun4u/sparc64/ \
+	-e s/arcle/arc/ \
+	-e s/arceb/arc/ \
+	-e s/arm.*/arm/ -e s/sa110/arm/ \
+	-e s/aarch64.*/arm64/ \
+	-e s/bfin/blackfin/ \
+	-e s/or1k/openrisc/ \
+	-e s/parisc64/parisc/ \
+	-e s/powerpc64.*/powerpc/ \
+	-e s/ppc.*/powerpc/ -e s/mips.*/mips/ \
+	-e s/sh.*/sh/ \
+	-e s/microblazeel/microblaze/)
+
+# add buildroot host bin in path
+BR_HOST_DIR = $(BR_TOP_DIR)/output/host
+BR_PATH = "$(BR_HOST_DIR)/bin:$(BR_HOST_DIR)/sbin:$(PATH)"
+export BR_NO_CCACHE
+
+export RV_CONFIG
+export TARGET_DIR
+export STAGING_DIR
+export HOST_DIR
+export IMAGE_DIR
+
+all: world
+
+# make buildroot / kernel / uboot is cost-time, do not clean these modules when make userspace_clean
+SPECAIL_NOT_USERSPACE_MODULE = uboot kernel buildroot
+
+include $(BUILD_SCRIPT_DIR)/utils.mk
+
+include $(wildcard buildroot/buildroot.rvmk)
+include $(wildcard u-boot/uboot.rvmk)
+include $(wildcard kernel/kernel.rvmk)
+include $(sort $(wildcard thirdparty/*/*.rvmk))
+include $(sort $(wildcard platform/*/*.rvmk))
+include $(sort $(wildcard app/*/*.rvmk))
+
+ifeq ($(MAKECMDGOALS),)
+
+define CHECK_ONE_DEPENDENCY
+ifeq ($$($(2)_TYPE),target)
+ifeq ($$($(2)_IS_VIRTUAL),)
+ifneq ($$($$($(2)_KCONFIG_VAR)),y)
+$$(error $$($(2)_NAME) is in the dependency chain of $$($(1)_NAME) that \
+has added it to its _DEPENDENCIES variable without selecting it or \
+depending on it from Config.in)
+endif
+endif
+endif
+
+endef # ifeq ($(MAKECMDGOALS),)
+
+$(foreach pkg,$(call UPPERCASE,$(PACKAGES)),\
+	$(foreach dep,$(call UPPERCASE,$($(pkg)_FINAL_ALL_DEPENDENCIES)),\
+		$(eval $(call CHECK_ONE_DEPENDENCY,$(pkg),$(dep))$(sep))))
+
+endif
+
+.PHONY: dirs
+dirs: $(BUILD_DIR) $(TARGET_DIR) $(ROOTFS_OVERLAY_DIR) \
+	$(HOST_DIR) $(HOST_DIR)/usr $(HOST_DIR)/lib $(IMAGE_DIR) \
+	$(AUTOCONF_HDR_DIR)
+
+$(HOST_DIR)/usr: $(HOST_DIR)
+	@ln -snf . $@
+
+$(HOST_DIR)/lib: $(HOST_DIR)
+	@mkdir -p $@
+	@case $(HOSTARCH) in \
+		(*64) ln -snf lib $(@D)/lib64;; \
+		(*)   ln -snf lib $(@D)/lib32;; \
+	esac
+	@touch $@
+
+$(HOST_CONFIG_DIR)/auto.conf: $(RV_CONFIG)
+	$(MAKE1) $(EXTRAMAKEARGS) HOSTCC="$(HOSTCC_NOCCACHE)" HOSTCXX="$(HOSTCXX_NOCCACHE)" silentoldconfig
+.PHONY: prepare
+prepare: $(HOST_CONFIG_DIR)/auto.conf
+
+.PHONY: check-need-clean
+check-need-clean: $(HOST_CONFIG_DIR)/userspace_clean
+# $(HOST_CONFIG_DIR)/check-mk-script: $(filter-out pack%.mk,$(call rwildcard,$(BUILD_SCRIPT_DIR),*.mk))
+#	@echo @@seems file modified in $(BUILD_SCRIPT_DIR), make userspace_clean/clean if need!@@
+#	@touch $(@)
+
+$(HOST_CONFIG_DIR)/userspace_clean: $(GLOBAL_CONFIG_DEP_FILE)
+#	$(BUILD_SCRIPT_DIR)/Makefile.hertz \
+#	$(HOST_CONFIG_DIR)/check-mk-script
+	$(Q)make userspace_clean
+	$(Q)touch $(@)
+
+.PHONY: userspace_clean
+userspace_clean: \
+	$(foreach pkgs-mkc,$(addsuffix _TARGET_MAKECLEAN,$(call UPPERCASE,$(filter-out $(SPECAIL_NOT_USERSPACE_MODULE),$(PACKAGES_ALL)))),$($(pkgs-mkc)))
+
+.PHONY: world
+world: $(PACKAGES) fw
+
+.PHONY: show-targets
+show-targets:
+	@echo $(PACKAGES)
+.PHONY: show-build-order
+show-build-order: $(patsubst %,%-show-build-order,$(PACKAGES))
+
+else # ifeq ($(RV_HAVE_DOT_CONFIG),y)
+
+ifeq ($(BUILDING),y)
+ifeq ($(filter %config $(noconfig_targets),$(MAKECMDGOALS)),)
+$(error Please menu configure first)
+endif
+endif
+
+endif # ifeq ($(RV_HAVE_DOT_CONFIG),y)
+
+HOSTCFLAGS = $(CFLAGS_FOR_BUILD)
+export HOSTCFLAGS
+
+$(HOST_CONFIG_DIR)/%onf:
+	mkdir -p $(CONFIG_DIR)
+	mkdir -p $(@D)/lxdialog
+	PKG_CONFIG_PATH="$(HOST_PKG_CONFIG_PATH)" $(MAKE) CC="$(HOSTCC_NOCCACHE)" HOSTCC="$(HOSTCC_NOCCACHE)" \
+	    obj=$(@D) -C $(CONFIG) -f Makefile.br $(@F)
+
+DEFCONFIG = $(call qstrip,$(RV_DEFCONFIG_FILE))
+
+# We don't want to fully expand BR2_DEFCONFIG here, so Kconfig will
+# recognize that if it's still at its default $(CONFIG_DIR)/defconfig
+COMMON_CONFIG_ENV = \
+	RV_DEFCONFIG='$(call qstrip,$(value RV_DEFCONFIG_FILE))' \
+	KCONFIG_AUTOCONFIG=$(HOST_CONFIG_DIR)/auto.conf \
+	KCONFIG_AUTOHEADER=$(HOST_CONFIG_DIR)/autoconf.h \
+	KCONFIG_TRISTATE=$(HOST_CONFIG_DIR)/tristate.config \
+	BR2_CONFIG=$(RV_CONFIG) \
+	HOST_GCC_VERSION="$(HOSTCC_VERSION)" \
+	BUILD_DIR=$(BUILD_DIR) \
+	SKIP_LEGACY=
+menuconfig: $(HOST_CONFIG_DIR)/mconf
+	$(Q)$(COMMON_CONFIG_ENV) $< $(CONFIG_CONFIG_IN)
+
+oldconfig silentoldconfig olddefconfig: $(HOST_CONFIG_DIR)/conf
+	@$(COMMON_CONFIG_ENV) $< --$@ $(CONFIG_CONFIG_IN)
+
+defconfig: $(HOST_CONFIG_DIR)/conf
+	@$(COMMON_CONFIG_ENV) $< --defconfig$(if $(DEFCONFIG),=$(DEFCONFIG)) $(CONFIG_CONFIG_IN)
+
+%_defconfig: $(HOST_CONFIG_DIR)/conf $(wildcard $(BOARD_DIR)/*/board_defconfigs/%_defconfig)
+	$(Q)$(COMMON_CONFIG_ENV) RV_DEFCONFIG=$(wildcard $(BOARD_DIR)/*/board_defconfigs/$@) \
+		$< --defconfig=$(wildcard $(BOARD_DIR)/*/board_defconfigs/$@) $(CONFIG_CONFIG_IN)
+
+savedefconfig: $(HOST_CONFIG_DIR)/conf
+	$(Q)$(COMMON_CONFIG_ENV) $< \
+		--savedefconfig=$(if $(DEFCONFIG),$(DEFCONFIG),$(CONFIG_DIR)/defconfig) \
+		$(CONFIG_CONFIG_IN)
+	$(Q)$(SED) '/RV_DEFCONFIG=/d' $(if $(DEFCONFIG),$(DEFCONFIG),$(CONFIG_DIR)/defconfig)
+
+.PHONY: defconfig savedefconfig
+
+clean: userspace_clean uboot-buildclean kernel-buildclean buildroot-buildclean
+	rm -rf $(IMAGE_DIR)
+
+distclean: clean
+	rm -rf $(BUILD_DIR) $(RV_CONFIG) $(CONFIG_DIR)/.config.old $(CONFIG_DIR)/..config.tmp \
+		$(CONFIG_DIR)/.auto.deps
+
+help: list-defconfigs
+	@echo 'Cleaning:'
+	@echo '  userspace_clean        - delete all files created by build except uboot, kernel and buildroot'
+	@echo '  clean                  - delete all files created by build'
+	@echo '  distclean              - delete all non-source files (including .config)'
+	@echo
+	@echo 'Build:'
+	@echo '  all                    - make world'
+	@echo '  buildroot              - build buildroot'
+	@echo '  uboot                 - build uboot
+	@echo '  kernel                 - build kernel'
+	@echo
+	@echo 'Configuration:'
+	@echo '  menuconfig             - interactive curses-based configurator'
+	@echo '  savedefconfig          - Save current config to RV_DEFCONFIG_FILE (minimal config)'
+	@echo '  <boardtype>_defconfig  - Use the <boardtype>_defconfig'
+	@echo '  list-defconfigs        - list all defconfigs (pre-configured minimal systems)'
+	@echo
+	@echo 'Package-specific:'
+	@echo '  <pkg>                  - Build and install <pkg> and all its dependencies'
+	@echo '  <pkg>-patch            - Apply patches to <pkg>'
+	@echo '  <pkg>-depends          - Build <pkg>'\''s dependencies'
+	@echo '  <pkg>-configure        - Build <pkg> up to the configure step'
+	@echo '  <pkg>-build            - Build <pkg> up to the build step'
+	@echo '  <pkg>-buildclean       - Clean <pkg> build'
+	@echo '  <pkg>-show-depends     - List packages on which <pkg> depends'
+	@echo '  <pkg>-show-rdepends    - List packages which have <pkg> as a dependency'
+	@echo '  <pkg>-dirclean         - Remove <pkg> build directory'
+	@echo '  <pkg>-reconfigure      - Restart the build from the configure step'
+	@echo '  <pkg>-rebuild          - Restart the build from the build step'
+	$(foreach p,$(HELP_PACKAGES), \
+	@echo $(sep) \
+	@echo '$($(p)_NAME):' $(sep) \
+	$($(p)_HELP_CMDS)$(sep))
+	@echo
+	@echo 'Miscellaneous:'
+	@echo '  printvars              - dump all the internal variables'
+	@echo '  make V=0|1             - 0 => quiet build (default), 1 => verbose build'
+	@echo '  prepare-gdb <SYMBOL_DIR= >'
+	@echo '                         - create gdb_debug directory, convenient for gdb debugging'
+	@echo
+	@echo 'Firmware:'
+	@echo '  fw                     - Generate firmware'
+	@echo '  dl                     - download firmware to board'
+	@echo
+
+list-defconfigs:
+	$(call PRINT_BUILDIN_CONFIG,board,board_defconfigs)
+
+include $(BUILD_SCRIPT_DIR)/assist.mk
+
+.PHONY: $(noconfig_targets)
+
+endif # $(shell umask)

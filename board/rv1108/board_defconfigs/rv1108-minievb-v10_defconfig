@@ -1,0 +1,1 @@
+BUILDROOT_CONFIG_FILE="$(BOARD_DIR)/$(RV_BOARD_TYPE)/buildroot_config/configs/rv1108_gcc6_uclibc_defconfig"

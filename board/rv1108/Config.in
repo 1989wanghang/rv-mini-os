@@ -1,0 +1,81 @@
+config RV_BOARD_110X
+	bool
+	default y if RV_BOARD_1108 || RV_BOARD_1109
+	default n
+
+if RV_BOARD_110X
+
+choice
+	prompt "Product Type"
+	default RV_PRODUCT_MIN_DEMO
+	help
+	  Select a product type to use.
+
+config RV_PRODUCT_CVR
+	bool "Car Video Recoder"
+	depends on !RV_PCBA_ENABLE
+	help
+	  Product Type: Car video recorder.
+
+config RV_PRODUCT_SDV
+	bool "Sport DV"
+	depends on !RV_PCBA_ENABLE
+	help
+	  Product Type: Sport DV.
+
+config RV_PRODUCT_FACE
+	bool "Face related products"
+	depends on !RV_PCBA_ENABLE
+	help
+	  Product Type: Face related products.
+
+config RV_PRODUCT_SIMPLE_DEMO
+	bool "Simple demo with camera preview"
+	help
+	  Product Type: Camera preview.
+
+config RV_PRODUCT_MIN_DEMO
+	bool "Min demo, only busybox terminal"
+	help
+	  Product Type: Busybox terminal.
+
+config RV_PRODUCT_IPC
+	bool "IP Camera"
+	depends on !RV_PCBA_ENABLE
+	help
+	  Product Type: IP Camera.
+endchoice
+
+config RV_PRODUCT_TYPE
+	string
+	default "SIMPLEDEMO"	if RV_PCBA_ENABLE
+	default "CVR"        	if RV_PRODUCT_CVR
+	default "SDV"        	if RV_PRODUCT_SDV
+	default "IPC"        	if RV_PRODUCT_IPC
+	default "FACE"       	if RV_PRODUCT_FACE
+	default "SIMPLEDEMO"    if RV_PRODUCT_SAMPLE
+	help
+	  type: CVR/SDV/IPC/FACE/SIMPLEDEMO
+
+config RV_LCD_RESOLUTION
+	string "lcd resolution"
+	default "960x540" if RV_BOARD_VERSION = "rv1108-evb-v13"
+	default "1280x720" if RV_BOARD_VERSION = "rv1108-minievb-v10"
+	default "0x0"
+	depends on RV_BOARD_VERSION != ""
+	help
+	  pattern: widthxheight
+
+config RV_LCD_BACKLIGHT_HIGH
+	int "LCD backlight high value"
+	default 250
+
+config RV_LCD_BACKLIGHT_MEDIAN
+	int "LCD backlight median value"
+	default 200
+
+config RV_LCD_BACKLIGHT_LOW
+	int "LCD backlight low value"
+	default 150
+
+endif

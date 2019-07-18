@@ -1,0 +1,41 @@
+menu "Board options"
+
+choice
+	prompt "Board Type"
+	default RV_BOARD_1808
+	help
+	  rk board type, usually the name of chip
+
+config RV_BOARD_1108
+	bool "rv1108"
+
+config RV_BOARD_1109
+	bool "rv1109"
+
+config RV_BOARD_1808
+	bool "rk1808"
+
+config RV_BOARD_3326
+	bool "rk3326"
+
+endchoice
+
+config RV_BOARD_TYPE
+	string
+	default "rv1108" if RV_BOARD_1108
+	default "rv1109" if RV_BOARD_1109
+	default "rk1808" if RV_BOARD_1808
+	default "rk3326" if RV_BOARD_3326
+	help
+	  rv1108, rv1109, rk1808, rk3326
+
+config RV_BOARD_VERSION
+	string "board version"
+	default "$(RV_BOARD_TYPE)-evb-linux"
+	default "rv1108-minievb-v10" if RV_BOARD_1108
+	help
+	  This must be the same name of dts file under kernel
+
+source "board/rv1108/Config.in"
+
+endmenu

@@ -1,0 +1,118 @@
+menuconfig RV_TARGET_FFMPEG
+	bool "FFMPEG"
+	default y
+	help
+	  FFMPEG in rv is used as muxer/demuxer, audio codecs and hardware h264 codecs.
+
+if RV_TARGET_FFMPEG
+config RV_TARGET_FFMPEG_STATIC_LIB
+	bool "Build static lib"
+
+config RV_TARGET_MPP_DECODER_LIMIT_BUFFER_NUM
+	string "the num of mpp decoder limited buffer"
+	default 0
+	help
+	  if 0, mpp decoder suppose that ion/drm buffer can be used without concern.
+	  Set equal or greater than 4 if you need the mpp decoder limit buffer usage.
+
+config RV_TARGET_FFMPEG_AUTOCONFIGURE
+    bool "Configure ffmpeg with autodetect"
+    default y
+    help
+      Autodetect configure will come into a full large ffmpeg library.
+      If request minimize, disable this and only select what you need.
+
+if !RV_TARGET_FFMPEG_AUTOCONFIGURE
+
+config RV_TARGET_FFMPEG_FFPLAY
+	bool "Enable ffplay"
+	default n
+
+config RV_TARGET_FFMPEG_ENCODER_PCM_S16LE
+	bool "Enable encoder pcm_s16le"
+	default n
+
+config RV_TARGET_FFMPEG_DECODER_PCM_S16LE
+	bool "Enable decoder pcm_s16le"
+	default y
+
+config RV_TARGET_FFMPEG_DEMUXER_H264
+	bool "Enable demuxer h264"
+	default y
+
+config RV_TARGET_FFMPEG_MUXER_AVI
+	bool "Enable muxer avi"
+	default n
+
+config RV_TARGET_FFMPEG_DEMUXER_AVI
+	bool "Enable demuxer avi"
+	default n
+
+config RV_TARGET_FFMPEG_MUXER_MPEGTS
+	bool "Enable muxer mpegts"
+	default n
+
+config RV_TARGET_FFMPEG_DEMUXER_MPEGTS
+	bool "Enable demuxer mpegts"
+	default n
+
+config RV_TARGET_FFMPEG_DEMUXER_MPEGPS
+	bool "Enable demuxer mpegps"
+	default n
+
+config RV_TARGET_FFMPEG_MUXER_RTP
+	bool "Enable muxer rtp"
+	default n
+
+config RV_TARGET_FFMPEG_MUXER_MP4
+	bool "Enable muxer mp4"
+	default n
+
+config RV_TARGET_FFMPEG_MUXER_MOV
+	bool "Enable muxer mov"
+	default n
+
+config RV_TARGET_FFMPEG_DEMUXER_MOV_MP4
+	bool "Enable demuxer mov/mp4"
+	default n
+
+config RV_TARGET_FFMPEG_MUXER_ADTS
+	bool "Enable muxer adts"
+	default n
+
+config RV_TARGET_FFMPEG_DEMUXER_AAC
+	bool "Enable demuxer aac"
+	default n
+
+config RV_TARGET_FFMPEG_MUXER_RTP_MPEGTS
+	bool "Enable muxer rtp_mpegts"
+	default n
+	select RV_TARGET_FFMPEG_MUXER_RTP
+	select RV_TARGET_FFMPEG_MUXER_MPEGTS
+
+config RV_TARGET_FFMPEG_MUXER_FLV
+	bool "Enable muxer flv"
+	default n
+
+config RV_TARGET_FFMPEG_DEMUXER_RTSP
+	bool "Enable demuxer rtsp"
+	default n
+
+config RV_TARGET_FFMPEG_PROTOCOL_UDP
+	bool "Enable protocol udp"
+	default n
+
+config RV_TARGET_FFMPEG_PROTOCOL_TCP
+	bool "Enable protocol tcp"
+	default n
+
+config RV_TARGET_FFMPEG_PROTOCOL_RTP
+	bool "Enable protocol rtp"
+	default n
+
+config RV_TARGET_FFMPEG_LIBRTMP
+	bool "Enable protocol librtmp"
+	default n
+endif
+
+endif

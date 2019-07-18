@@ -1,0 +1,11 @@
+# module hello_makefile
+# example for Makefile build
+
+# Lazy for do not write 'Makefile' by myself.
+# If your module have ready 'Makefile' file, do not need this dependency
+HELLO_MAKEFILE_DEPENDENCIES = hello_autotools
+
+# demo, do not set y
+RV_TARGET_HELLO_MAKEFILE = n
+
+$(eval $(rv-generic-makefile))

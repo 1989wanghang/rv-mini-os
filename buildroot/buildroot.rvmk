@@ -1,0 +1,62 @@
+# buildroot rvmk
+
+RV_TARGET_BUILDROOT := y
+
+BUILDROOT_KCONFIG_EDITORS := menuconfig
+
+BUILDROOT_ADD_TOOLCHAIN_DEPENDENCY = NO
+
+ifeq ($(BUIDING),y)
+ifndef BUILDROOT_CONFIG_FILE
+$(error No buildroot configuration file specified, check your project config)
+else
+$(info Use buildroot configuration file $(BUILDROOT_CONFIG_FILE))
+endif
+endif
+
+BUILDROOT_KCONFIG_FILE = $(call qstrip,$(BUILDROOT_CONFIG_FILE))
+BR2_EXTERNAL_DIRS := $(subst /configs/,,$(dir $(BUILDROOT_KCONFIG_FILE)))
+export BR2_EXTERNAL_DIRS
+
+BUILDROOT_KCONFIG_OPTS = \
+	BR2_EXTERNAL_DIRS=$(BR2_EXTERNAL_DIRS)
+
+BUILDROOT_BUILD_CONFIG = $(BUILDROOT_PKGDIR)/.config
+# make sure there is none of duplicated packages in rockchip providing
+define BUILDROOT_DISABLE_PKG_DUPLICATED_WITH_RK
+$(call KCONFIG_DISABLE_OPT,BR2_PACKAGE_FFMPEG,$(BUILDROOT_BUILD_CONFIG))
+endef
+
+define BUILDROOT_KCONFIG_FIXUP_CMDS
+	$(BUILDROOT_DISABLE_PKG_DUPLICATED_WITH_RK)
+	$(call $(if $(BUILDROOT_ENABLE_LIBDRM),KCONFIG_ENABLE_OPT,KCONFIG_DISABLE_OPT),BR2_PACKAGE_LIBDRM,$(BUILDROOT_BUILD_CONFIG))
+endef
+
+define BUILDROOT_CONFIGURE_CMDS
+	$(Q)cd $($(PKG)_PKGDIR); ln -snf ../buildroot_dl/dl .
+endef
+
+define BUILDROOT_BUILD_CMDS
+	$(Q)cd $($(PKG)_PKGDIR) && $(MAKE)
+	$(Q)cd $($(PKG)_PKGDIR) && $(MAKE) \
+		host-automake host-autoconf host-libtool \
+		host-squashfs host-e2fsprogs host-attr host-acl \
+		host-lz4 host-lzo host-xz host-zstd
+# touch the built stamp, do not always build check
+	$(Q)touch $@
+endef
+
+define BUILDROOT_MAKECLEAN_CMDS
+	$(Q)cd $($(PKG)_PKGDIR) && $(MAKE) distclean
+	$(Q)rm -f $($(PKG)_BUILDDIR)/.stamp_built
+endef
+
+BUILDROOT_CONFIGURE_DEP_CONFIGS = BUILDROOT_CONFIG_FILE
+
+BUILDROOT_CONFIGURE_DEP_FILES = $(realpath $(shell find $(BUILDROOT_PKGDIR)/../patch))
+
+$(eval $(kconfig-package))
+
+.PHONY: buildroot-list-defconfigs
+buildroot-list-defconfigs:
+	$(call PRINT_BUILDIN_CONFIG,buildroot,buildroot_config,configs)
